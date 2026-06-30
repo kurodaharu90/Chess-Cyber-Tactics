@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>CYBER ARENA TATTICA — Scacchi Neon v2.1</title>
+<title>CYBER TACTICAL ARENA — Neon Chess v2.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -398,21 +398,21 @@ body{
 
 <div class="topbar">
   <div class="brand">
-    <h1>⚡ CYBER ARENA TATTICA</h1>
+    <h1>⚡ CYBER TACTICAL ARENA</h1>
     <span class="tag">Quantum Chess Matrix · real-time analytics</span>
   </div>
   <div class="legend">
-    <span class="lp"><i></i>Inchiodatura</span>
-    <span class="lf"><i></i>Forchetta Vera</span>
-    <span class="ls"><i></i>Infilata Laser</span>
-    <span class="lc"><i></i>Overvoltage (Scacco)</span>
+    <span class="lp"><i></i>Pin</span>
+    <span class="lf"><i></i>True Fork</span>
+    <span class="ls"><i></i>Laser Skewer</span>
+    <span class="lc"><i></i>Overvoltage (Check)</span>
     <span class="lv"><i></i>Vector Vision</span>
   </div>
 </div>
 
 <div class="arena">
   <div class="board-col">
-    <div class="status-line"><div class="status-dot" id="statusDot"></div><span id="statusText">PROCESSO CORE: BIANCO</span></div>
+    <div class="status-line"><div class="status-dot" id="statusDot"></div><span id="statusText">CORE PROCESS: WHITE</span></div>
     <div class="board-frame">
       <div class="board-outer" id="boardOuter">
         <div class="board-grid" id="boardGrid"></div>
@@ -426,7 +426,7 @@ body{
 
   <div class="side-col">
     <div class="panel">
-      <h2>🖥️ Terminale Di Comando</h2>
+      <h2>🖥️ Command Terminal</h2>
       <div class="controls">
         <button class="btn primary" id="btnNew">♟ Initialize Grid</button>
         <button class="btn" id="btnUndo">↺ Rollback</button>
@@ -437,7 +437,7 @@ body{
     </div>
 
     <div class="panel">
-      <h2>📊 Deallocazione Materiale</h2>
+      <h2>📊 Material Deallocation</h2>
       <div class="captured-row">
         <span>Data Extract (White):</span><span class="material-diff" id="diffWhite"></span>
       </div>
@@ -449,26 +449,26 @@ body{
     </div>
 
     <div class="panel">
-      <h2>💾 Log Operazioni</h2>
+      <h2>💾 Operations Log</h2>
       <div class="movelist" id="moveList"></div>
     </div>
 
     <div class="panel">
-      <h2>🎯 Min threats Rilevate</h2>
-      <div class="tactics-feed" id="tacticsFeed"><div class="tactic-empty">Nessuna anomalia tattica registrata.</div></div>
+      <h2>🎯 Tactical Threats Detected</h2>
+      <div class="tactics-feed" id="tacticsFeed"><div class="tactic-empty">No tactical anomalies registered.</div></div>
     </div>
   </div>
 </div>
 
-<div class="footer-note">Protocollo Sicuro FIDE Attivo · Rilevatore Dinamico Computazionale di Scudi e Forchette Reali [v2.1]</div>
+<div class="footer-note">FIDE Secure Protocol Active · Computational Dynamic Detector of Shields and Royal Forks [v2.1]</div>
 
 <div class="toast-stack" id="toastStack"></div>
 
 <div class="endgame-banner" id="endgameBanner">
   <div class="endgame-card">
     <h2 id="endgameTitle">SYSTEM OVERLOAD</h2>
-    <p id="endgameSub">Il database ha concluso le operazioni.</p>
-    <button class="btn primary" id="btnEndgameNew">♟ Riavvia Sistema</button>
+    <p id="endgameSub">The database has completed its operations.</p>
+    <button class="btn primary" id="btnEndgameNew">♟ Reboot System</button>
   </div>
 </div>
 
@@ -1159,6 +1159,33 @@ function refreshBoardOverlay(){
   if(inCheckColor){ const kSq = findKing(game.board, inCheckColor); const ke = squareEl(kSq); if(ke) ke.classList.add('king-check'); }
 }
 
+function findPinsAndSkewers(board){
+  const pins=[], skewers=[];
+  for(let sq=0; sq<64; sq++){
+    const p=board[sq]; if(!p) continue;
+    const type=p.toUpperCase(); if(type!=='B' && type!=='R' && type!=='Q') continue;
+    const attackerColor=colorOf(p);
+    const dirs = type==='B' ? BISHOP_DIRS : type==='R' ? ROOK_DIRS : BISHOP_DIRS.concat(ROOK_DIRS);
+    for(const [df,dr] of dirs){
+      const hits = scanLine(board, sq, df, dr); if(hits.length<2) continue;
+      const [first, second] = hits;
+      if(colorOf(first.piece)===attackerColor || colorOf(second.piece)!==colorOf(first.piece)) continue;
+      const firstIsKing = first.piece.toUpperCase()==='K'; const secondIsKing = second.piece.toUpperCase()==='K';
+      const vFirst=pieceVal(first.piece), vSecond=pieceVal(second.piece);
+      if(secondIsKing && !firstIsKing){
+        pins.push({attacker:sq, pinned:first.sq, behind:second.sq, type:'absolute', attackerColor});
+      } else if(firstIsKing){
+        skewers.push({attacker:sq, front:first.sq, behind:second.sq, attackerColor});
+      } else if(!secondIsKing && vSecond > vFirst){
+        pins.push({attacker:sq, pinned:first.sq, behind:second.sq, type:'relative', attackerColor});
+      } else if(!secondIsKing && vFirst > vSecond){
+        skewers.push({attacker:sq, front:first.sq, behind:second.sq, attackerColor});
+      }
+    }
+  }
+  return {pins, skewers};
+}
+
 function markSelectedAndHanging(){
   Object.values(pieceEls).forEach(el=>el.classList.remove('selected-piece','hanging','shocked','chained'));
   if(selected!==null && pieceEls[selected]) pieceEls[selected].classList.add('selected-piece');
@@ -1202,7 +1229,7 @@ function onSquareClick(sq){
 function openPromotionModal(choices){
   pendingPromotion = choices; const color = colorOf(choices[0].piece);
   const modal=document.createElement('div'); modal.className='promo-modal';
-  modal.innerHTML = '<div class="promo-card"><h3>Scegli la promozione</h3><div class="promo-choices"></div></div>';
+  modal.innerHTML = '<div class="promo-card"><h3>Choose Promotion</h3><div class="promo-choices"></div></div>';
   const row = modal.querySelector('.promo-choices');
   for(const promo of ['Q','R','B','N']){
     const c=document.createElement('div'); c.className='promo-choice'; c.textContent = PIECE_GLYPH[color==='w'?promo:promo.toLowerCase()];
@@ -1293,19 +1320,19 @@ function renderMoveList(){
 }
 
 function updateStatusLine(status){
-  statusDot.className='status-dot'+(game.turn==='b'?' black':''); const side = game.turn==='w' ? 'BIANCO' : 'NERO';
-  if(status==='checkmate'){ statusDot.className='status-dot over'; statusText.textContent='OVERLOAD: VINCE '+(game.turn==='w'?'IL NERO':'IL BIANCO'); }
-  else if(status==='stalemate'){ statusDot.className='status-dot over'; statusText.textContent='STALLO: DIAGNOSTICA PARITARIA'; }
-  else if(status==='draw50'){ statusDot.className='status-dot over'; statusText.textContent='PATTA: REQUISITO 50 MOSSE'; }
-  else if(status==='check'){ statusDot.className='status-dot check'; statusText.textContent='OVERVOLTAGE — SCACCO AL RE '+side; }
-  else { statusText.textContent='PROCESSO CORE: '+side; }
+  statusDot.className='status-dot'+(game.turn==='b'?' black':''); const side = game.turn==='w' ? 'WHITE' : 'BLACK';
+  if(status==='checkmate'){ statusDot.className='status-dot over'; statusText.textContent='OVERLOAD: ' + (game.turn==='w'?'BLACK WINS':'WHITE WINS'); }
+  else if(status==='stalemate'){ statusDot.className='status-dot over'; statusText.textContent='STALEMATE: EQUAL DIAGNOSTICS'; }
+  else if(status==='draw50'){ statusDot.className='status-dot over'; statusText.textContent='DRAW: 50-MOVE REQUISITE'; }
+  else if(status==='check'){ statusDot.className='status-dot check'; statusText.textContent='OVERVOLTAGE — CHECK TO ' + side + ' KING'; }
+  else { statusText.textContent='CORE PROCESS: '+side; }
 }
 
 function showEndgame(status){
   gameOver=true; const banner=document.getElementById('endgameBanner'); const title=document.getElementById('endgameTitle'); const sub=document.getElementById('endgameSub');
-  if(status==='checkmate'){ title.textContent='SYSTEM TERMINATED'; sub.textContent = (game.turn==='w' ? 'Il database Nero' : 'Il database Bianco') + ' ha eseguito un wipe completo.'; }
-  else if(status==='stalemate'){ title.textContent='LOOP DI STALLO'; sub.textContent='Assenza di computazioni legali residue. Partita Archiviata in patta.'; }
-  else { title.textContent='BUFFER SATURO'; sub.textContent='Raggiunto il limite di 50 mosse stabili senza catture.'; }
+  if(status==='checkmate'){ title.textContent='SYSTEM TERMINATED'; sub.textContent = (game.turn==='w' ? 'The Black database' : 'The White database') + ' has executed a full wipe.'; }
+  else if(status==='stalemate'){ title.textContent='STALEMATE LOOP'; sub.textContent='No legal computations remaining. Match archived as a draw.'; }
+  else { title.textContent='BUFFER SATURATED'; sub.textContent='Reached the limit of 50 stable moves without captures.'; }
   banner.classList.add('show');
 }
 
@@ -1335,7 +1362,7 @@ function runTacticsAnalysis(status){
   const {pins, skewers} = findPinsAndSkewers(game.board);
   const forks = findForks(game.board,'w').concat(findForks(game.board,'b'));
   if(status==='check'){
-    showToast('check', '⚡ <span>HIGH VOLTAGE: <b>Scacco al Re '+(game.turn==='w'?'Bianco':'Nero')+'!</b></span>'); playSound('check');
+    showToast('check', '⚡ <span>HIGH VOLTAGE: <b>Check to the '+(game.turn==='w'?'White':'Black')+' King!</b></span>'); playSound('check');
   }
   const sig = JSON.stringify({pins:pins.map(p=>[p.attacker,p.pinned,p.behind,p.type]), skewers:skewers.map(s=>[s.attacker,s.front,s.behind]), forks:forks.map(f=>[f.from,f.targets.join(',')])});
   if(sig !== lastTacticsSig){ announceNewTactics(pins, skewers, forks); lastTacticsSig = sig; }
@@ -1351,21 +1378,21 @@ function announceNewTactics(pins, skewers, forks){
   for(const p of pins) currentSet.add(tacticKey(p,'pin')); for(const s of skewers) currentSet.add(tacticKey(s,'skewer')); for(const f of forks) currentSet.add(tacticKey(f,'fork'));
   for(const p of pins){
     const k=tacticKey(p,'pin'); if(!prevTacticsSet.has(k)){
-      const label = p.type==='absolute' ? 'INCHIODATURA ASSOLUTA [RE]' : 'INCHIODATURA RELATIVA';
-      showToast('pin', '📌 <span>'+label+' su <b>'+sqName(p.pinned)+'</b></span>');
+      const label = p.type==='absolute' ? 'ABSOLUTE PIN [KING]' : 'RELATIVE PIN';
+      showToast('pin', '📌 <span>'+label+' on <b>'+sqName(p.pinned)+'</b></span>');
     }
   }
-  for(const s of skewers){ const k=tacticKey(s,'skewer'); if(!prevTacticsSet.has(k)){ showToast('skewer', '🗡 <span>INFILATA LASER: <b>'+sqName(s.front)+'</b> → <b>'+sqName(s.behind)+'</b></span>'); } }
-  for(const f of forks){ const k=tacticKey(f,'fork'); if(!prevTacticsSet.has(k)){ const tag = f.hasKing ? 'FORCHETTA REALE' : 'FORCHETTA VERA'; showToast('fork', '🔱 <span>'+tag+' da <b>'+sqName(f.from)+'</b></span>'); } }
+  for(const s of skewers){ const k=tacticKey(s,'skewer'); if(!prevTacticsSet.has(k)){ showToast('skewer', '🗡 <span>LASER SKEWER: <b>'+sqName(s.front)+'</b> → <b>'+sqName(s.behind)+'</b></span>'); } }
+  for(const f of forks){ const k=tacticKey(f,'fork'); if(!prevTacticsSet.has(k)){ const tag = f.hasKing ? 'ROYAL FORK' : 'TRUE FORK'; showToast('fork', '🔱 <span>'+tag+' from <b>'+sqName(f.from)+'</b></span>'); } }
   if(currentSet.size) playSound('tactic'); prevTacticsSet = currentSet;
 }
 
 function renderTacticsFeed(pins, skewers, forks){
   tacticsFeed.innerHTML=''; const items=[];
-  for(const p of pins) items.push({kind:'pin', text:(p.type==='absolute'?'Inchiodatura Assoluta: ':'Inchiodatura Relativa: ')+sqName(p.pinned)+' → '+sqName(p.behind), data:p});
-  for(const s of skewers) items.push({kind:'skewer', text:'Infilata Laser: '+sqName(s.front)+' → '+sqName(s.behind), data:s});
-  for(const f of forks) items.push({kind:'fork', text:(f.hasKing?'Forchetta Reale: ':'Forchetta Vera: ')+sqName(f.from)+' ➔ '+f.targets.map(sqName).join(','), data:f});
-  if(!items.length){ tacticsFeed.innerHTML='<div class="tactic-empty">Griglia stabile. Nessun vettore d\'attacco.</div>'; return; }
+  for(const p of pins) items.push({kind:'pin', text:(p.type==='absolute'?'Absolute Pin: ':'Relative Pin: ')+sqName(p.pinned)+' → '+sqName(p.behind), data:p});
+  for(const s of skewers) items.push({kind:'skewer', text:'Laser Skewer: '+sqName(s.front)+' → '+sqName(s.behind), data:s});
+  for(const f of forks) items.push({kind:'fork', text:(f.hasKing?'Royal Fork: ':'True Fork: ')+sqName(f.from)+' ➔ '+f.targets.map(sqName).join(','), data:f});
+  if(!items.length){ tacticsFeed.innerHTML='<div class="tactic-empty">Grid stable. No attack vectors detected.</div>'; return; }
   for(const it of items){
     const card=document.createElement('div'); card.className='tactic-card '+it.kind; card.innerHTML='<span class="dot"></span><span>'+it.text+'</span>';
     card.addEventListener('click', ()=>drawTacticsOverlay({pins, skewers, forks}, it)); tacticsFeed.appendChild(card);
@@ -1458,7 +1485,7 @@ function newGame(){
   sanHistory=[]; capturedByWhite=[]; capturedByBlack=[]; prevTacticsSet = new Set(); lastTacticsSig='';
   document.getElementById('endgameBanner').classList.remove('show');
   buildGrid(); renderPieces(); refreshBoardOverlay(); renderMoveList(); renderCaptures(); updateStatusLine('normal');
-  tacticsFeed.innerHTML='<div class="tactic-empty">Griglia stabile. Nessun vettore d\'attacco.</div>'; tacticsSvg.innerHTML='';
+  tacticsFeed.innerHTML='<div class="tactic-empty">No tactical anomalies registered.</div>'; tacticsSvg.innerHTML='';
 }
 function undoMove(){
   if(gameOver){ gameOver=false; document.getElementById('endgameBanner').classList.remove('show'); }
